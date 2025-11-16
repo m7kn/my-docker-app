@@ -1,0 +1,110 @@
+# ===============================================
+#  REDIS SZOLGÁLTATÁSOK
+# ===============================================
+
+# --- 1. Redis Perzisztens Tárhely (a Volume) ---
+# Ez a "Volume" megfelelője (technikailag a kérelem rá)
+apiVersion: v1
+kind: PersistentVolumeClaim # PVC: "Kérek tárhelyet"
+metadata:
+  name: redis-data-pvc # A PVC neve
+spec:
+  accessModes:
+    - ReadWriteOnce # Egyszerre csak egy Pod írhatja/olvashatja
+  resources:
+    requests:
+      storage: 1Gi # Kérünk 1 GB tárhelyet
+---
+# --- 2. Redis Deployment (a futtató) ---
+# Ez mondja meg, HOGYAN fusson a Redis konténer
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-deployment
+spec:
+  replicas: 1 # 1 darab Pod-ot kérünk belőle
+  selector:
+    matchLabels:
+      app: redis # Ez köti össze a Pod-ot a Deployment-tel
+  template: # Ez a Pod "sablonja"
+    metadata:
+      labels:
+        app: redis # Ez a Pod "címkéje"
+    spec:
+      containers:
+      - name: redis
+        image: "redis:7-alpine" # Ugyanaz a hivatalos image
+        ports:
+        - containerPort: 6379 # A konténer portja
+        volumeMounts: # Itt csatoljuk be a tárhelyet...
+        - name: redis-data
+          mountPath: /data # ...a konténer /data mappájába.
+      volumes:
+      - name: redis-data
+        persistentVolumeClaim: # ...a korábban definiált PVC-re hivatkozva.
+          claimName: redis-data-pvc
+---
+# --- 3. Redis Service (a hálózat) ---
+# Ez ad a Redis Pod-nak egy stabil belső DNS nevet: "redis"
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis # FONTOS: Ez lesz a neve: 'redis'
+spec:
+  selector:
+    app: redis # Ezzel a címkével ellátott Pod-okat célozza
+  ports:
+    - protocol: TCP
+      port: 6379       # A Service portja
+      targetPort: 6379 # A Pod portja
+
+# ===============================================
+#  WEB ALKALMAZÁS SZOLGÁLTATÁSAI
+# ===============================================
+
+---
+# --- 4. Web Deployment (a futtató) ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-deployment
+spec:
+  replicas: 2 # Indítsunk egyből KETTŐT, hogy lássuk a load balancing-ot!
+  selector:
+    matchLabels:
+      app: web
+  template: # A Pod sablonja
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+      - name: web-app
+        image: my-hello-app # A MI HELYI IMAGE-ÜNK
+        # FONTOS: Mondjuk meg a K8s-nek, hogy SOHA ne próbálja letölteni
+        # ezt az image-et registry-ből, hanem használja a helyit.
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 5000 # A Python app portja
+        env:
+        # Itt adjuk át a Redis címét, pont mint Compose-ban
+        # A 'redis' név a fenti Service nevéből (metadata.name) jön.
+        - name: REDIS_HOST
+          value: "redis"
+---
+# --- 5. Web Service (a külső elérés) ---
+# Ez teszi elérhetővé a 'web-deployment'-et a külvilág számára
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-service
+spec:
+  # A 'LoadBalancer' típus azt kéri a K8s-től (minikube),
+  # hogy adjon neki egy külső IP címet.
+  type: LoadBalancer
+  selector:
+    app: web # Ezzel a címkével ellátott Pod-okat célozza
+  ports:
+    - protocol: TCP
+      port: 5000       # A külső port
+      targetPort: 5000 # A Pod-ok portja
