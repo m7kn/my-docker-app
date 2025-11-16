@@ -80,7 +80,7 @@ spec:
     spec:
       containers:
       - name: web-app
-        image: m7kn/my-docker-app:latest
+        image: m7kn/my-hello-app:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 5000 # A Python app portja
