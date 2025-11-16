@@ -1,0 +1,43 @@
+name: CI Pipeline - Build and Push Docker Image
+
+# Mikor fusson le?
+on:
+  push:
+    branches:
+      - main  # Csak a 'main' ágra történő push-oláskor
+  # Hozzáadjuk ezt is, hogy kézzel is elindíthasd a GitHub felületéről
+  workflow_dispatch:
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest # Milyen gépen fusson? (GitHub adja)
+
+    steps:
+      # 1. lépés: Kiveszi a kódodat (a repóból)
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      # 2. lépés: Bejelentkezés a Docker Hub-ra
+      # A titkokat használja, amiket korábban beállítottunk
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # 3. lépés: Összerakja a címkéket (Tag-eket)
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/my-hello-app
+
+      # 4. lépés: Docker image építése és feltöltése
+      # Ez a lépés használja a mi Dockerfile-unkat
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: . # A Dockerfile helye (a gyökér)
+          push: true # Töltse is fel
+          tags: ${{ steps.meta.outputs.tags }} # Címke: pl. norbert54/my-hello-app:latest
+          labels: ${{ steps.meta.outputs.labels }}

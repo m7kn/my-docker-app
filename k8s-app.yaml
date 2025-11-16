@@ -80,10 +80,8 @@ spec:
     spec:
       containers:
       - name: web-app
-        image: my-hello-app # A MI HELYI IMAGE-ÜNK
-        # FONTOS: Mondjuk meg a K8s-nek, hogy SOHA ne próbálja letölteni
-        # ezt az image-et registry-ből, hanem használja a helyit.
-        imagePullPolicy: Never
+        image: m7kn/my-docker-app:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 5000 # A Python app portja
         env:
