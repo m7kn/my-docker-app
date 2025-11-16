@@ -32,8 +32,8 @@ jobs:
         with:
           images: ${{ secrets.DOCKERHUB_USERNAME }}/my-hello-app
           tags:
-            type=ref,event=branch
-            type=raw,value=latest,enable={{is_default_branch}}
+            - type=ref,event=branch
+            - type=raw,value=latest,enable={{is_default_branch}}
 
       # 4. lépés: Docker image építése és feltöltése
       # Ez a lépés használja a mi Dockerfile-unkat
